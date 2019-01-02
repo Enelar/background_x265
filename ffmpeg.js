@@ -10,14 +10,14 @@ function watcher(proc)
   let watchdog = setInterval(async () => {
   	let idle = await printidle();
 
-  	if (idle < 5 * 1000) {
+  	if (idle < 1 * 1000) {
   	  proc.pause();
   	}
 
-  	if (idle > 5 * 1000) {
+  	if (idle > 2 * 1000) {
   	  proc.resume();
   	}
-  }, 500);
+  }, 100);
 
   proc.waitExit()
   	.then(() => {
@@ -38,10 +38,10 @@ module.exports =
   	  let m;
 
 	  let regex = /^.*?\n\s+(Stream.*?)\n/gsi;
-  	  
+
   	  while (m = regex.exec(str))
   	  {
-  	  	if (m[1].search('h264'))
+  	  	if (m[1].search(/(h264|mpeg4)/))
   	  	  resolve(true), resolved = true;
   	  }
   	})
@@ -56,7 +56,7 @@ module.exports =
   }
   ,
   convert: (fileA, fileB) => {
-  	let args = 
+  	let args =
   	[
   	  "-y",
   	  "-vaapi_device",
@@ -70,7 +70,7 @@ module.exports =
   	  '-pix_fmt',
   	  'yuv420p',
   	  '-crf',
-  	  '27',
+  	  '26',
   	  '-g',
   	  25 /* average fps */ * 60 /* seconds in minute */ * 5 /* minutes to frame */,
   	  '-bf',
@@ -85,10 +85,17 @@ module.exports =
   	];
 
   	let proc = new spawn("ffmpeg", args);
-  	
+
   	watcher(proc);
 
-  	proc.onStdout((data) => console.log(data.toString()));
+  	proc.onStdout((data) => {});
+  	proc.onStderr(data => {
+  	   let strings = data.toString().split("\n");
+
+  	   for (let line of strings)
+  	   	  if (line.search("speed") != -1)
+  			process.stdout.write(line);
+  	});
 
   	return proc.waitExit();
   }
@@ -103,7 +110,7 @@ module.exports =
   	  let m;
 
 	  let regex = /^.*?\n\s+duration:\s*(.*?)[.,]/gsi;
-  	  
+
   	  while (m = regex.exec(str))
   	  {
   	  	resolve(m[1]);
